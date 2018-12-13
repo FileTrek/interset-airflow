@@ -46,7 +46,7 @@ def sync_dag(parent_dag_name, child_dag_name, default_args, schedule_interval):
                                 dag=dag)
 
     # $DIR/spark.sh com.interset.analytics.indexing.AnomaliesIndexerJob $ES_PARAMS --batchProcessing $batchModeSync
-    anamolies = ESBashOperator(task_id="anamolies",
+    anomalies = ESBashOperator(task_id="anomalies",
                              bash_command="""%s  com.interset.analytics.indexing.AnomaliesIndexerJob \
                                              --tenantID %s \
                                              --dbServer {{ var.value.zkPhoenix }} \
@@ -176,6 +176,6 @@ def sync_dag(parent_dag_name, child_dag_name, default_args, schedule_interval):
                                               env=interset_env,
                                               dag=dag)
 
-    # mark_start >> entity_relation_stats >> entity_stats >> anamolies >> working_hours >> risky_entities >> reporting_tags >> risk_scores >> entity_relation_counts >> relation_tags >> indexing_alias_and_cleanup >> mark_sync_window >> mark_end >> mark_analytics_end
-    mark_start >> entity_relation_stats >> entity_stats >> anamolies >> working_hours >> risky_entities >> reporting_tags >> risk_scores >> entity_relation_counts >> relation_tags >> indexing_alias_and_cleanup >> mark_sync_window >> mark_end >> analyticsa_metadata
+    # mark_start >> entity_relation_stats >> entity_stats >> anomalies >> working_hours >> risky_entities >> reporting_tags >> risk_scores >> entity_relation_counts >> relation_tags >> indexing_alias_and_cleanup >> mark_sync_window >> mark_end >> mark_analytics_end
+    mark_start >> entity_relation_stats >> entity_stats >> anomalies >> working_hours >> risky_entities >> reporting_tags >> risk_scores >> entity_relation_counts >> relation_tags >> indexing_alias_and_cleanup >> mark_sync_window >> mark_end >> analyticsa_metadata
     return dag

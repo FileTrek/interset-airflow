@@ -26,7 +26,7 @@ def scoring_dag(parent_dag_name, child_dag_name, default_args, schedule_interval
                               dag=dag)
 
     # $DIR/spark.sh com.interset.analytics.scoring.DirectAnomaliesJob --tenantID ${tenantID} --dbServer $zkPhoenix --parallelism $parallelism --batchProcessing $batchProcessing
-    direct_anamolies = BashOperator(task_id="direct_anamolies",
+    direct_anomalies = BashOperator(task_id="direct_anomalies",
                                     bash_command="""%s com.interset.analytics.scoring.DirectAnomaliesJob \
                                                     --tenantID %s \
                                                     --dbServer {{ var.value.zkPhoenix }} \
@@ -47,7 +47,7 @@ def scoring_dag(parent_dag_name, child_dag_name, default_args, schedule_interval
 
     # updating anomaly_stats table
     # $DIR/spark.sh com.interset.analytics.scoring.AnomalyStatsJob --tenantID ${tenantID} --dbServer $zkPhoenix --parallelism $parallelism
-    anamoly_stats = BashOperator(task_id="anamoly_stats",
+    anomaly_stats = BashOperator(task_id="anomaly_stats",
                                  bash_command="""%s com.interset.analytics.scoring.AnomalyStatsJob \
                                                  --tenantID %s \
                                                  --dbServer {{ var.value.zkPhoenix }} \
@@ -99,7 +99,7 @@ def scoring_dag(parent_dag_name, child_dag_name, default_args, schedule_interval
 
     # Followup anomaly aggregation
     # $DIR/sql.sh --action analytics2 --tenantID ${tenantID} --dbServer $zkPhoenix 
-    anamoly_aggregation = BashOperator(task_id="anamoly_aggregation",
+    anomaly_aggregation = BashOperator(task_id="anomaly_aggregation",
                                        bash_command="""%s \
                                                        --action analytics2 \
                                                        --tenantID %s \
@@ -131,7 +131,7 @@ def scoring_dag(parent_dag_name, child_dag_name, default_args, schedule_interval
 
     # Augment endpoint anomalies with entities from ElasticSearch
     # $DIR/spark.sh com.interset.analytics.scoring.AnomalousEntitiesJob --tenantID ${tenantID} --dbServer ${zkPhoenix} --parallelism $parallelism --batchProcessing $batchProcessing $ES_PARAMS
-    anamolous_entities = ESBashOperator(task_id="anamolous_entities",
+    anomalous_entities = ESBashOperator(task_id="anomalous_entities",
                                       bash_command="""%s com.interset.analytics.scoring.AnomalousEntitiesJob \
                                                       --tenantID %s \
                                                       --dbServer {{ var.value.zkPhoenix }} \
@@ -213,8 +213,8 @@ def scoring_dag(parent_dag_name, child_dag_name, default_args, schedule_interval
                             env=interset_env,
                             dag=dag)
 
-    mark_start >> direct_anamolies >> first_analytics_sql_tasks >> anamoly_stats >> \
+    mark_start >> direct_anomalies >> first_analytics_sql_tasks >> anomaly_stats >> \
     cross_working_days >> cross_working_hours >> generate_anomalies >> \
-    human_machine_classifier >> anamoly_aggregation >> risk_normalizer_job >> anamolous_entities >> \
+    human_machine_classifier >> anomaly_aggregation >> risk_normalizer_job >> anomalous_entities >> \
     aggregate_story >> story_tuning >> entity_vulnerability >> entity_tuning >> mark_scoring_window >> mark_end
     return dag
