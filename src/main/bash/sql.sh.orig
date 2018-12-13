@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# Exit on task failure
+set -e
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+source $DIR/env.sh
+
+# Put all JARs into classpath
+CLASSPATH=$(ls $DIR/../jars/analytics-fat.jar)
+
+# Make sure our other configuration is in the classpath as well
+CLASSPATH=/etc/hbase/conf:/usr/hdp/current/phoenix-client/phoenix-client.jar:$CLASSPATH
+
+# Add internal resources to classpath
+CLASSPATH=$DIR/../conf/resources:$CLASSPATH
+
+# If no args, force printing usage
+if [[ -z $1 ]]
+then
+	echo "Usage: "
+	echo "--dbServer    <server>"
+	echo "--tenantID    <1 to 3 character tenant ID>"
+	echo "--action      {aggregate, aggregatecontribution, analytics[1-4], clean, cleanscores, console, purge, recreate, cleanbots[1-3], baseline, migrate, migrate_aggregates, normalizerisk, checkconfig}"
+	exit 1	
+fi
+
+java -Xmx8192m -classpath $CLASSPATH com.interset.analytics.sqlrunner.Runner ${*}
+eval $RUN_CMD

@@ -1,0 +1,55 @@
+<configuration scan="true">
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Send output to a file, rollover based on size -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_FILE}</file>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <!--Pattern>%d{yyyy-MM-dd_HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</Pattern -->
+            <Pattern>%msg%n</Pattern>
+        </encoder>
+        <!-- keep the last 100 files-->
+        <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+            <FileNamePattern>${LOG_FILE}.%i.gz</FileNamePattern>
+            <MinIndex>1</MinIndex>
+            <MaxIndex>100</MaxIndex>
+        </rollingPolicy>
+        <!-- rollover when the file reaches 1GB -->
+        <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+            <MaxFileSize>1GB</MaxFileSize>
+        </triggeringPolicy>
+    </appender>
+
+    <!-- Send output to a file, rollover daily -->
+    <appender name="FILE_DAILY_ROLLOVER" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_FILE}</file>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <!--Pattern>%d{yyyy-MM-dd_HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</Pattern-->
+            <Pattern>%msg%n</Pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- rollover daily -->
+            <FileNamePattern>${LOG_FILE}.%d{yyyy-MM-dd}.%i.gz</FileNamePattern>
+            <!-- keep 365 days' worth of history -->
+            <MaxHistory>365</MaxHistory>
+            <!-- or whenever the file size reaches 1GB -->
+            <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                <maxFileSize>1GB</maxFileSize>
+            </timeBasedFileNamingAndTriggeringPolicy>
+        </rollingPolicy>
+    </appender>
+
+    <logger name="org.apache" level="ERROR" />
+    <logger name="org.mortbay" level="ERROR" />
+    <logger name="BlockStateChange" level="ERROR" />
+
+    <root level="INFO">
+        <appender-ref ref="FILE" />
+    </root>
+    
+</configuration>

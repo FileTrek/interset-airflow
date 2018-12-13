@@ -1,0 +1,110 @@
+#!/bin/bash
+
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+source $DIR/env.sh
+
+# Check for Spark variables
+
+# Adding queue support
+# default to "default" if not set!
+QUEUE=
+
+if [[ -z "$QUEUE" ]]
+then
+  QUEUE=default
+fi
+
+if [[ -z "$SPARK_MASTER_URL" ]]
+then
+  echo "Error: SPARK_MASTER_URL not set"
+  exit 1
+fi
+
+if [[ ! -d "$SPARK_HOME" ]]
+then
+  echo "Error: SPARK_HOME not set"
+  exit 1
+fi
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# Check for JAR
+JAR_FILE=$(echo $DIR/../jars/jobs*.jar)
+if [[ ! -f $JAR_FILE ]]
+then
+  echo "Error: Couldn't locate jobs JAR"
+  exit 1
+fi
+
+#Check for logging config
+LOG_CONFIG=$(echo $DIR/../conf/resources/log4j-spark.properties)
+if [[ ! -f $LOG_CONFIG ]]
+then
+  echo "Error: Couldn't locate log configuration file"
+  exit 1
+fi
+
+METRICS_CONFIG=$(echo $SPARK_HOME/conf/metrics.properties)
+if [[ ! -f $METRICS_CONFIG ]]
+then
+  echo "Error: Couldn't locate log configuration file"
+  exit 1
+fi
+
+# Find available Spark jobs in JAR file matching "com.interset*Job.class"
+ALL_JOBS=`unzip -l $JAR_FILE | grep "com.interset" | grep "Job\.class" | grep -v "SparkPhoenixJob" | awk '{print $4}' | sed -e 's/\//\./g' | sed -e 's/\.class//g'`
+TRAINING_JOBS=`unzip -l $JAR_FILE | grep "com.interset" | grep "Job\.class" | grep -v "SparkPhoenixJob" | awk '{print $4}' | sed -e 's/\//\./g' | sed -e 's/\.class//g' | grep "training"`
+SCORING_JOBS=`unzip -l $JAR_FILE | grep "com.interset" | grep "Job\.class" | grep -v "SparkPhoenixJob" | awk '{print $4}' | sed -e 's/\//\./g' | sed -e 's/\.class//g' | grep "scoring" | grep -v "EntityVulnerabilityJob"`
+
+# We need entity vulnerability to run last
+SCORING_JOBS=`echo $SCORING_JOBS com.interset.analytics.scoring.EntityVulnerabilityJob`
+
+if [ "$taskMaxFailures" != "" ]; then
+    SPARK_CONF="--conf spark.task.maxFailures=${taskMaxFailures}"
+fi
+
+SPARK_METRIC_CONF="--conf spark.metrics.conf=metrics.properties"
+
+# Extract custom job name if provided and remove it from the params (needs to be provided before jar)
+PARAMS=${*:2}
+EXTRACTED_NAME=$(echo $PARAMS | grep -oP "(?<=\-\-name ).*?(?=--|$)")
+
+if [ "$EXTRACTED_NAME" != "" ]; then
+  JOB_NAME="--name \"$EXTRACTED_NAME\""
+  PARAMS=$(echo $PARAMS | sed -e "s/--name $EXTRACTED_NAME//g")
+fi
+
+# Print usage
+if [[ -z $1 ]]
+then
+	echo "Usage: $0 <job class> --tenantID <tid> --dbServer <serverUrl>"
+	echo "Or"
+	echo "Usage: $0 console"
+	echo ""
+	echo "Available jobs: "
+	for i in $ALL_JOBS
+	do
+		echo $i
+	done
+	echo
+	echo "Spark Cluster Settings:"
+	echo "Master: $SPARK_MASTER_URL"
+	exit 1
+fi
+
+# Spark shell
+if [[ "$1" == "console" ]]
+then
+    echo "Entering spark shell"
+    RUN_CMD="$SPARK_HOME/bin/spark-shell --master yarn-client --jars $JAR_FILE ${*:2}"
+else
+    # Abort script on error
+    set -e
+    # Submit job
+    echo "Submitting job: $1"
+    RUN_CMD="$SPARK_HOME/bin/spark-submit --class $1 --master yarn-cluster --queue $QUEUE --files $LOG_CONFIG#log4j.properties,$METRICS_CONFIG  --num-executors ${numExecutors} --executor-cores ${executorCores} --executor-memory ${executorMem} --driver-memory ${driverMem} $SPARK_CONF  $SPARK_METRIC_CONF $JOB_NAME $JAR_FILE $PARAMS"
+fi
+
+eval $RUN_CMD
+
